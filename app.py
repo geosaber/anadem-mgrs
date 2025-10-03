@@ -73,7 +73,7 @@ def create_mgrs_map(geojson_data):
     m = folium.Map(
         location=[-15, -55],
         zoom_start=6,
-        tiles='OpenTopoMap'
+        tiles='OpenStreetMap'
     )
     
     if geojson_data:
