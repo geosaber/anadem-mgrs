@@ -16,7 +16,7 @@ def load_mgrs_geojson():
     """Carrega o GeoJSON da grade MGRS do GitHub"""
     
     # URL do arquivo GeoJSON no GitHub (substitua pela sua URL)
-    GITHUB_GEOJSON_URL = "https://raw.githubusercontent.com/seu-usuario/seu-repositorio/main/mgrs_grid.geojson"
+    GITHUB_GEOJSON_URL = "https://raw.githubusercontent.com/geosaber/anadem-mgrs/main/mgrs_grid.geojson"
     
     try:
         response = requests.get(GITHUB_GEOJSON_URL)
