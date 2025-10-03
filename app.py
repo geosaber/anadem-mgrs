@@ -15,7 +15,7 @@ st.set_page_config(
 def load_mgrs_geojson():
     """Carrega o GeoJSON da grade MGRS do GitHub"""
     
-    # URL do arquivo GeoJSON no GitHub (substitua pela sua URL)
+    # URL do arquivo GeoJSON no GitHub (SUBSTITUA pela sua URL)
     GITHUB_GEOJSON_URL = "https://raw.githubusercontent.com/geosaber/anadem-mgrs/main/mgrs_grid.geojson"
     
     try:
@@ -29,6 +29,43 @@ def load_mgrs_geojson():
         st.error(f"Erro ao carregar GeoJSON: {e}")
         return None
 
+def find_clicked_mgrs(geojson_data, clicked_lat, clicked_lng):
+    """Encontra o código MGRS da célula clicada"""
+    if not geojson_data:
+        return None
+    
+    for feature in geojson_data['features']:
+        # Verificar se o ponto clicado está dentro do polígono
+        geometry = feature['geometry']
+        properties = feature['properties']
+        
+        if geometry['type'] == 'Polygon':
+            # Verificação simplificada - em produção use uma lib como shapely
+            coordinates = geometry['coordinates'][0]  # Primeiro anel do polígono
+            if is_point_in_polygon(clicked_lng, clicked_lat, coordinates):
+                return properties.get('mgrs')  # Ajuste o nome do campo conforme seu GeoJSON
+    
+    return None
+
+def is_point_in_polygon(x, y, poly):
+    """Verifica se um ponto está dentro de um polígono (algoritmo ray casting)"""
+    n = len(poly)
+    inside = False
+    
+    p1x, p1y = poly[0]
+    for i in range(n + 1):
+        p2x, p2y = poly[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    
+    return inside
+
 def create_mgrs_map(geojson_data):
     """Cria mapa com grade MGRS do GeoJSON"""
     
@@ -40,25 +77,35 @@ def create_mgrs_map(geojson_data):
     )
     
     if geojson_data:
-        # Encontrar campos disponíveis para tooltip
+        # Campos específicos para tooltip (mgrs, wr2, utm)
+        tooltip_fields = []
+        
+        # Verificar quais campos existem no GeoJSON
         sample_feature = geojson_data['features'][0] if geojson_data['features'] else {}
         properties = sample_feature.get('properties', {})
         
-        # Campos para tooltip (até 4 campos)
-        tooltip_fields = []
-        field_aliases = {
-            'MGRS': 'Código MGRS:',
-            'ZONE': 'Zona UTM:',
-            'LAT': 'Latitude:',
-            'LON': 'Longitude:',
-            'FID': 'ID:',
-            'id': 'ID:',
-            'name': 'Nome:'
-        }
+        # Priorizar os campos solicitados
+        preferred_fields = ['mgrs', 'wr2', 'utm', 'MGRS', 'WR2', 'UTM', 'zone']
         
-        for field in properties.keys():
-            if len(tooltip_fields) < 4:  # Limitar a 4 campos
+        for field in preferred_fields:
+            if field in properties and len(tooltip_fields) < 3:
                 tooltip_fields.append(field)
+        
+        # Se não encontrou os campos preferidos, pega os 3 primeiros disponíveis
+        if not tooltip_fields:
+            tooltip_fields = list(properties.keys())[:3]
+        
+        # Aliases para os campos
+        field_aliases = {
+            'mgrs': 'MGRS:',
+            'MGRS': 'MGRS:',
+            'wr2': 'WR2:',
+            'WR2': 'WR2:',
+            'utm': 'UTM:',
+            'UTM': 'UTM:',
+            'zone': 'Zona:',
+            'ZONE': 'Zona:'
+        }
         
         # Adicionar grade MGRS ao mapa
         folium.GeoJson(
@@ -73,9 +120,9 @@ def create_mgrs_map(geojson_data):
                 fields=tooltip_fields,
                 aliases=[field_aliases.get(field, field) for field in tooltip_fields],
                 style=("background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 8px;")
-            ) if tooltip_fields else None,
+            ),
             name='Grade MGRS',
-            zoom_on_click=True
+            zoom_on_click=False
         ).add_to(m)
     
     # Adicionar camadas base
@@ -100,7 +147,7 @@ def main():
     st.title("🗺️ Grade MGRS - ANADEM")
     st.markdown("""
     Visualização da grade MGRS (Military Grid Reference System) com dados reais do projeto ANADEM.
-    **Carregando dados do GeoJSON no GitHub** ✅
+    **Clique em qualquer célula para ver o código MGRS** ✅
     """)
     
     # Sidebar
@@ -110,7 +157,6 @@ def main():
         st.subheader("🎨 Estilo da Grade")
         line_color = st.color_picker("Cor da linha", "#FF0000")
         line_weight = st.slider("Espessura", 1, 3, 1)
-        show_labels = st.toggle("Mostrar tooltips", True)
         
         st.subheader("📊 Estatísticas")
     
@@ -137,7 +183,7 @@ def main():
             mgrs_map, 
             width=1200, 
             height=600,
-            returned_objects=['last_clicked', 'bounds']
+            returned_objects=['last_clicked', 'last_active_drawing']
         )
         
         # Informações da célula clicada
@@ -145,9 +191,25 @@ def main():
             clicked_lat = map_data['last_clicked']['lat']
             clicked_lng = map_data['last_clicked']['lng']
             
+            # Encontrar código MGRS da célula clicada
+            clicked_mgrs = find_clicked_mgrs(geojson_data, clicked_lat, clicked_lng)
+            
             st.sidebar.subheader("📍 Célula Clicada")
-            st.sidebar.write(f"Lat: {clicked_lat:.4f}")
-            st.sidebar.write(f"Lon: {clicked_lng:.4f}")
+            st.sidebar.write(f"**Latitude:** {clicked_lat:.4f}")
+            st.sidebar.write(f"**Longitude:** {clicked_lng:.4f}")
+            
+            if clicked_mgrs:
+                st.sidebar.success(f"**Código MGRS:** {clicked_mgrs}")
+            else:
+                st.sidebar.warning("Célula MGRS não identificada")
+        
+        # Mostrar informações do GeoJSON
+        with st.expander("📋 Informações da Grade MGRS"):
+            if geojson_data['features']:
+                sample_properties = geojson_data['features'][0]['properties']
+                st.write("**Campos disponíveis no GeoJSON:**")
+                for key, value in sample_properties.items():
+                    st.write(f"- `{key}`: {value}")
     
     else:
         st.error("""
@@ -156,25 +218,34 @@ def main():
         **Solução:**
         1. Converta seu shapefile para GeoJSON
         2. Faça upload do arquivo `mgrs_grid.geojson` no GitHub
-        3. Atualize a URL no código acima
+        3. Atualize a URL no código
         """)
         
-        st.info("""
-        **Como converter para GeoJSON:**
-        
-        **Com QGIS:**
-        - Abra o shapefile no QGIS
-        - Clique direito → Exportar → Salvar Feições Como
-        - Formato: GeoJSON
-        - Salve como `mgrs_grid.geojson`
-        
-        **Com Python:**
-        ```python
-        import geopandas as gpd
-        gdf = gpd.read_file("anadem_mgrs.shp")
-        gdf.to_file("mgrs_grid.geojson", driver='GeoJSON')
-        ```
-        """)
+        # Instruções detalhadas
+        with st.expander("🔧 Como configurar"):
+            st.markdown("""
+            **1. Converter shapefile para GeoJSON:**
+            ```python
+            import geopandas as gpd
+            gdf = gpd.read_file("anadem_mgrs.shp")
+            gdf.to_file("mgrs_grid.geojson", driver='GeoJSON')
+            ```
+            
+            **2. Fazer upload no GitHub:**
+            - Vá no seu repositório
+            - Clique em "Add file" → "Upload files"
+            - Arraste o `mgrs_grid.geojson`
+            
+            **3. Obter URL raw:**
+            - Clique no arquivo no GitHub
+            - Clique em "Raw"
+            - Copie a URL
+            
+            **4. Atualizar o app:**
+            ```python
+            GITHUB_GEOJSON_URL = "sua_url_aqui"
+            ```
+            """)
     
     # Informações
     st.markdown("---")
@@ -182,21 +253,26 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📁 Sobre os Dados")
+        st.subheader("🎯 Como usar")
         st.markdown("""
-        **Fonte:** Grade MGRS do ANADEM
-        **Formato:** GeoJSON
-        **Armazenamento:** GitHub
-        **Atualização:** Automática
+        1. **Passe o mouse** sobre as células para ver MGRS, WR2 e UTM
+        2. **Clique em qualquer célula** para ver o código MGRS na sidebar
+        3. **Use as camadas** para mudar o mapa base
+        4. **Zoom** para ver detalhes
         """)
     
     with col2:
-        st.subheader("🔧 Tecnologias")
+        st.subheader("📊 Dados MGRS")
         st.markdown("""
-        - **Streamlit** - Interface web
-        - **Folium** - Mapas interativos  
-        - **GeoJSON** - Dados espaciais
-        - **GitHub** - Hospedagem de dados
+        **Campos mostrados:**
+        - **MGRS**: Código completo da célula
+        - **WR2**: Identificador da região
+        - **UTM**: Zona UTM
+        
+        **Interatividade:**
+        - Tooltips automáticos
+        - Clique para identificar
+        - Múltiplas camadas
         """)
 
 if __name__ == "__main__":
