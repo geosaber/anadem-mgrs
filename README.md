@@ -1,10 +1,10 @@
 # ANADEM MGRS Grid Viewer
 
-Aplicativo web interativo para visualização da grade MGRS com dados do projeto ANADEM.
+Aplicativo web interativo para visualização da grade MGRS dos dados do projeto ANADEM.
 
 ## 🌐 Acesso Online
 
-O app está disponível em: [https://anadem-mgrs-app.streamlit.app](https://anadem-mgrs-app.streamlit.app)
+O app está disponível em: [https://anadem-mgrs.streamlit.app](https://anadem-mgrs.streamlit.app)
 
 ## 🚀 Funcionalidades
 
@@ -20,16 +20,3 @@ O app está disponível em: [https://anadem-mgrs-app.streamlit.app](https://anad
 - Folium
 - GeoPandas
 - Python
-
-## 📦 Execução Local
-
-```bash
-# Clone o repositório
-git clone [seu-repositorio]
-cd anadem-mgrs-app
-
-# Instale as dependências
-pip install -r requirements.txt
-
-# Execute o app
-streamlit run app.py
