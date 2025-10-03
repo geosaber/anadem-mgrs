@@ -72,8 +72,8 @@ def create_mgrs_map(geojson_data):
     # Centro do Brasil
     m = folium.Map(
         location=[-15, -55],
-        zoom_start=4,
-        tiles='OpenStreetMap'
+        zoom_start=6,
+        tiles='OpenTopoMap'
     )
     
     if geojson_data:
@@ -146,7 +146,7 @@ def create_mgrs_map(geojson_data):
 def main():
     st.title("🗺️ Grade MGRS - ANADEM")
     st.markdown("""
-    Visualização da grade MGRS (Military Grid Reference System) com dados reais do projeto ANADEM.
+    Visualização da grade MGRS (Military Grid Reference System) com dados do projeto ANADEM.
     **Clique em qualquer célula para ver o código MGRS** ✅
     """)
     
@@ -176,7 +176,7 @@ def main():
             """)
         
         # Criar e exibir mapa
-        st.subheader("🗺️ Mapa Interativo - Grade MGRS Real")
+        st.subheader("🗺️ Mapa Interativo - Grade MGRS")
         mgrs_map = create_mgrs_map(geojson_data)
         
         map_data = st_folium(
@@ -247,33 +247,5 @@ def main():
             ```
             """)
     
-    # Informações
-    st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("🎯 Como usar")
-        st.markdown("""
-        1. **Passe o mouse** sobre as células para ver MGRS, WR2 e UTM
-        2. **Clique em qualquer célula** para ver o código MGRS na sidebar
-        3. **Use as camadas** para mudar o mapa base
-        4. **Zoom** para ver detalhes
-        """)
-    
-    with col2:
-        st.subheader("📊 Dados MGRS")
-        st.markdown("""
-        **Campos mostrados:**
-        - **MGRS**: Código completo da célula
-        - **WR2**: Identificador da região
-        - **UTM**: Zona UTM
-        
-        **Interatividade:**
-        - Tooltips automáticos
-        - Clique para identificar
-        - Múltiplas camadas
-        """)
-
 if __name__ == "__main__":
     main()
