@@ -72,7 +72,7 @@ def create_mgrs_map(geojson_data):
     # Centro do Brasil
     m = folium.Map(
         location=[-15, -55],
-        zoom_start=2,
+        zoom_start=3,
         tiles='OpenStreetMap'
     )
     
